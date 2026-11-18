@@ -9,7 +9,7 @@ make.fun bounty submission: **"Sum up 18 November's world news in one image"**
 
 ## What it does
 
-`main.py` renders a single 1600×1160 PNG infographic — **WORLD NEWS,
+`main.py` renders a single 1024×742 PNG infographic — **WORLD NEWS,
 Wednesday, 18 November 2026** — with the six stories that shaped the day
 plus an "Also today" strip:
 

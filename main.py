@@ -9,7 +9,9 @@ This program is stdlib-only (no third-party imports, no network access)
 and fully deterministic: same input -> byte-identical PNG every run.
 It renders a 1600x1160 news infographic (6 top stories + an
 "also today" strip) with a hand-built 5x7 bitmap font and a pure-Python
-PNG encoder (zlib + struct), then writes it to:
+PNG encoder (zlib + struct), then deterministically downscales it to
+1024x742 (scale 0.64) so the final image meets the bounty cap of at
+most 1024x1024 pixels and at most 1 MiB, then writes it to:
 
     /output/entry.png          (primary, when /output is writable)
     output/entry.png           (fallback, next to this script)
@@ -22,7 +24,14 @@ import struct
 import zlib
 
 # ---------------------------------------------------------------- canvas
+# Internal render canvas (layout space) and final output size. The bounty
+# caps the entry image at 1024x1024 px and 1 MiB, so the 1600x1160
+# layout is rendered first, then deterministically downscaled by 0.64
+# to 1024x742 (same aspect ratio). All text is drawn from a bitmap
+# font with a minimum 2 px cell, so every stroke survives the 0.64
+# sampling at >= 1 px and stays readable.
 W, H = 1600, 1160
+OW, OH = 1024, 742
 
 PAPER = (244, 241, 234)      # off-white paper background
 NAVY = (11, 31, 58)          # header / footer band
@@ -200,16 +209,39 @@ def _chunk(kind, data):
     return out
 
 
-def png_bytes(buf):
+def png_bytes(buf, w, h):
     raw = bytearray()
-    for y in range(H):
+    for y in range(h):
         raw.append(0)  # filter: none
-        raw += buf[y * W * 3:(y + 1) * W * 3]
-    ihdr = struct.pack(">IIBBBBB", W, H, 8, 2, 0, 0, 0)
+        raw += buf[y * w * 3:(y + 1) * w * 3]
+    ihdr = struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0)
     return (b"\x89PNG\r\n\x1a\n"
             + _chunk(b"IHDR", ihdr)
             + _chunk(b"IDAT", zlib.compress(bytes(raw), 9))
             + _chunk(b"IEND", b""))
+
+
+def downscale(buf):
+    """Deterministic nearest-neighbour downscale W x H -> OW x OH.
+
+    Integer index mapping only, so the result is byte-identical every
+    run. Every drawn stroke is >= 2 px on the source canvas, and the
+    sampled columns/rows hit at least one pixel of every 2 px stroke,
+    so no text stroke is dropped.
+    """
+    out = bytearray(OW * OH * 3)
+    for oy in range(OH):
+        sy = (oy * H) // OH
+        srow = sy * W * 3
+        drow = oy * OW * 3
+        for ox in range(OW):
+            sx = (ox * W) // OW
+            s = srow + sx * 3
+            d = drow + ox * 3
+            out[d] = buf[s]
+            out[d + 1] = buf[s + 1]
+            out[d + 2] = buf[s + 2]
+    return out
 
 
 # ---------------------------------------------------------------- content
@@ -307,7 +339,8 @@ def build():
             "\u2022   One image, six stories   \u2022   Deterministic build - no network")
     draw_text(buf, (W - text_width(foot, 2)) // 2, 1128, foot, 2, LIGHT)
 
-    return png_bytes(buf)
+    # Downscale to the bounty-legal output size (1024x742, <=1024x1024).
+    return png_bytes(downscale(buf), OW, OH)
 
 
 def main():
@@ -326,7 +359,7 @@ def main():
             pass
     if not written:
         raise SystemExit("could not write entry.png to any output path")
-    print("wrote %s (%dx%d, %d bytes)" % (", ".join(written), W, H, len(data)))
+    print("wrote %s (%dx%d, %d bytes)" % (", ".join(written), OW, OH, len(data)))
 
 
 if __name__ == "__main__":
