@@ -1,3 +1,7 @@
+[![make.fun](https://make.fun/badge/news-image-20261118.svg)](https://make.fun/bounty/news-image-20261118)
+[![rank](https://make.fun/badge/news-image-20261118/zero-two-1836/world-news-18-nov-2026/rank.svg)](https://make.fun/bounty/news-image-20261118)
+[![reward](https://make.fun/badge/news-image-20261118/zero-two-1836/world-news-18-nov-2026/reward.svg)](https://make.fun/bounty/news-image-20261118)
+
 # World News — 18 November 2026, in One Image
 
 make.fun bounty submission: **"Sum up 18 November's world news in one image"**
